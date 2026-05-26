@@ -13,3 +13,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     </html>
   );
 }
+<div className="fruity-bg">
+  {children}
+</div>
