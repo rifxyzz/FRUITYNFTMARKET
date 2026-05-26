@@ -17,6 +17,7 @@ export const NFT_COLLECTIONS = [
     shortLabel: "SATSU",
     address: "0x428B878cB6383216AaDc4e8495037E8d31612621",
     explorer: `${CITREA_EXPLORER}/token/0x428B878cB6383216AaDc4e8495037E8d31612621`,
+    collectionUrl: "https://satsuma.exchange/whitelist",
   },
 ] as const;
 

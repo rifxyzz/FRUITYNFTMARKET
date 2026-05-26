@@ -22,6 +22,10 @@ type StatusState = {
 
 const readProvider = new JsonRpcProvider(CITREA_RPC_URL);
 const zeroAddress = "0x0000000000000000000000000000000000000000";
+const INVENTORY_PROBE_LIMIT = Number(process.env.NEXT_PUBLIC_NFT_PROBE_LIMIT || 2000);
+const MARKET_PROBE_LIMIT = Number(process.env.NEXT_PUBLIC_MARKET_PROBE_LIMIT || 120);
+
+const formatCbtc = (value: bigint) => `${formatEther(value)} cBTC`;
 
 export default function Home() {
   const [tab, setTab] = useState<TabKey>("inventory");
@@ -48,6 +52,7 @@ export default function Home() {
     if (!uri) return "";
     if (uri.startsWith("ipfs://")) return `https://ipfs.io/ipfs/${uri.slice(7)}`;
     if (uri.startsWith("ar://")) return `https://arweave.net/${uri.slice(5)}`;
+    if (uri.startsWith("data:")) return uri;
     return uri;
   }, []);
 
@@ -58,22 +63,22 @@ export default function Home() {
     attributes: [],
   }), []);
 
-  const loadMetadata = useCallback(async (contract: Contract, symbol: string, tokenId: string) => {
+  const loadMetadata = useCallback(async (contract: Contract, symbol: string, tokenId: string, collectionImageUrl?: string) => {
     const meta = fallbackMeta(symbol, tokenId);
     try {
       const tokenUri = resolveUri(await contract.tokenURI(tokenId));
-      if (!tokenUri) return meta;
-      const response = await fetch(tokenUri);
-      if (!response.ok) return meta;
+      if (!tokenUri) return { ...meta, image: collectionImageUrl || meta.image };
+      const response = await fetch(tokenUri, { cache: "no-store" });
+      if (!response.ok) return { ...meta, image: collectionImageUrl || meta.image };
       const json = await response.json();
       return {
         name: json.name || meta.name,
         description: json.description || meta.description,
-        image: resolveUri(json.image || json.image_url || ""),
+        image: resolveUri(json.image || json.image_url || json.animation_url || collectionImageUrl || ""),
         attributes: json.attributes || json.traits || [],
       } satisfies NftMetadata;
     } catch {
-      return meta;
+      return { ...meta, image: collectionImageUrl || meta.image };
     }
   }, [fallbackMeta, resolveUri]);
 
@@ -94,7 +99,7 @@ export default function Home() {
       }
       const active = seller && seller !== zeroAddress && priceWei > 0n;
       if (!active) return undefined;
-      return { seller, priceWei, priceLabel: `${formatEther(priceWei)} cBTC`, active };
+      return { seller, priceWei, priceLabel: formatCbtc(priceWei), active };
     } catch {
       return undefined;
     }
@@ -106,7 +111,7 @@ export default function Home() {
     owner?: string,
   ): Promise<NftItem> => {
     const contract = getReadContract(collection.address);
-    const metadata = await loadMetadata(contract, collection.symbol, tokenId);
+    const metadata = await loadMetadata(contract, collection.symbol, tokenId, collection.imageUrl);
     const listing = await readListing(collection.address, tokenId);
     return {
       tokenId,
@@ -144,6 +149,9 @@ export default function Home() {
         await contract.supportsInterface("0x80ac58cd");
       } catch {}
 
+      const collectionUrl = "collectionUrl" in item && typeof item.collectionUrl === "string" ? item.collectionUrl : undefined;
+      const imageUrl = "imageUrl" in item && typeof item.imageUrl === "string" ? item.imageUrl : undefined;
+
       return {
         key: item.key,
         label: item.label,
@@ -154,6 +162,11 @@ export default function Home() {
         totalSupply,
         mintPrice,
         hasMint,
+        listedCount: 0,
+        floorPriceWei: null,
+        floorPriceLabel: "No active listings",
+        collectionUrl,
+        imageUrl,
       } satisfies CollectionState;
     }));
     setCollections(detected);
@@ -216,7 +229,7 @@ export default function Home() {
         try {
           tokenId = (await contract.tokenOfOwnerByIndex(account, i)).toString();
         } catch {
-          const max = collection.totalSupply > 250n ? 250n : collection.totalSupply;
+          const max = collection.totalSupply > BigInt(INVENTORY_PROBE_LIMIT) ? BigInt(INVENTORY_PROBE_LIMIT) : collection.totalSupply;
           for (let probe = 0n; probe <= max; probe++) {
             try {
               const owner = await contract.ownerOf(probe);
@@ -241,15 +254,35 @@ export default function Home() {
 
     for (const collection of collections) {
       const contract = getReadContract(collection.address);
-      const limit = collection.totalSupply > 36n ? 36n : collection.totalSupply;
+      const limit = collection.totalSupply > BigInt(MARKET_PROBE_LIMIT) ? BigInt(MARKET_PROBE_LIMIT) : collection.totalSupply;
       for (let index = 0n; index < limit; index++) {
         let tokenId = index.toString();
-        try { tokenId = (await contract.tokenByIndex(index)).toString(); } catch {}
+        try { tokenId = (await contract.tokenByIndex(index)).toString(); } catch { tokenId = (index + 1n).toString(); }
         const item = await tokenToItem(collection, tokenId);
         if (item.listing?.active || !MARKETPLACE_ADDRESS) items.push(item);
       }
     }
 
+    setCollections((current) => {
+      let changed = false;
+      const next = current.map((collection) => {
+        const activeListings = items.filter((item) => item.collectionAddress.toLowerCase() === collection.address.toLowerCase() && item.listing?.active);
+        const floorPriceWei = activeListings.reduce<bigint | null>((floor, item) => {
+          const price = item.listing?.priceWei;
+          if (!price) return floor;
+          return floor === null || price < floor ? price : floor;
+        }, null);
+        const floorPriceLabel = floorPriceWei === null ? "No active listings" : formatCbtc(floorPriceWei);
+        if (collection.listedCount !== activeListings.length || collection.floorPriceWei !== floorPriceWei || collection.floorPriceLabel !== floorPriceLabel) changed = true;
+        return {
+          ...collection,
+          listedCount: activeListings.length,
+          floorPriceWei,
+          floorPriceLabel,
+        };
+      });
+      return changed ? next : current;
+    });
     setMarketItems(items);
     setLoadingMarket(false);
   }, [collections, getReadContract, tokenToItem]);
@@ -354,7 +387,11 @@ export default function Home() {
             <div className="panel-label">{collection.label}</div>
             <h3>{collection.name}</h3>
             <p>{collection.symbol} · {collection.totalSupply.toLocaleString()} supply</p>
-            <a href={`${CITREA_EXPLORER}/token/${collection.address}`} target="_blank">Explorer</a>
+            <p>{collection.listedCount.toLocaleString()} listed · Floor {collection.floorPriceLabel}</p>
+            <div className="panel-links">
+              <a href={`${CITREA_EXPLORER}/token/${collection.address}`} target="_blank">Explorer</a>
+              {collection.collectionUrl && <a href={collection.collectionUrl} target="_blank">Collection</a>}
+            </div>
           </article>
         ))}
       </section>
@@ -421,7 +458,8 @@ export default function Home() {
               <input value={listingTokenId} onChange={(event) => setListingTokenId(event.target.value)} placeholder="example: 1" />
               <label>cBTC Price</label>
               <input value={listingPrice} onChange={(event) => setListingPrice(event.target.value)} placeholder="example: 0.01" />
-              <button className="primary-btn" onClick={listNft} disabled={!account || !MARKETPLACE_ADDRESS}>List NFT</button>
+              <div className="price-box">Listing price: {listingPrice ? `${listingPrice} cBTC` : "enter a cBTC amount"}</div>
+              <button className="primary-btn" onClick={listNft} disabled={!account || !MARKETPLACE_ADDRESS || !listingTokenId || !listingPrice}>List NFT</button>
             </div>
             <div className="form-card">
               <h3>Buy NFT</h3>
@@ -452,13 +490,14 @@ function NftGrid({ items, emptyText, onBuy }: { items: NftItem[]; emptyText: str
       {items.map((item) => (
         <article className="nft-card" key={`${item.collectionAddress}:${item.tokenId}`}>
           <div className="nft-image">
-            {item.metadata.image ? <img src={item.metadata.image} alt={item.metadata.name} /> : <span>🍊</span>}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {item.metadata.image ? <img src={item.metadata.image} alt={item.metadata.name} referrerPolicy="no-referrer" /> : <span>🍊</span>}
           </div>
           <div className="nft-body">
             <div className="pill">{item.collectionLabel}</div>
             <h3>{item.metadata.name}</h3>
             <p>#{item.tokenId} · {item.symbol}</p>
-            {item.listing?.active && <strong className="price">{item.listing.priceLabel}</strong>}
+            {item.listing?.active && <strong className="price">Listed: {item.listing.priceLabel}</strong>}
             <div className="card-actions">
               <a href={`${CITREA_EXPLORER}/token/${item.collectionAddress}/instance/${item.tokenId}`} target="_blank">Explorer</a>
               {onBuy && item.listing?.active && <button onClick={() => onBuy(item)}>Buy</button>}

@@ -42,6 +42,11 @@ export type CollectionState = {
   totalSupply: bigint;
   mintPrice: bigint | null;
   hasMint: boolean;
+  listedCount: number;
+  floorPriceWei: bigint | null;
+  floorPriceLabel: string;
+  collectionUrl?: string;
+  imageUrl?: string;
 };
 
 declare global {

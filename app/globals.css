@@ -111,6 +111,7 @@ h2 { font-size: clamp(2rem, 4vw, 3.6rem); }
 .panel-label { color: var(--orange); font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 10px; }
 .panel h3 { font-size: 1.35rem; margin-bottom: 8px; }
 .panel p, .muted { color: var(--muted); line-height: 1.7; }
+.panel-links { display: flex; flex-wrap: wrap; gap: 12px; }
 
 .tabs { display: flex; gap: 10px; flex-wrap: wrap; margin: 30px 0; }
 .tabs button {
