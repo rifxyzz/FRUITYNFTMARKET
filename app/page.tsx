@@ -224,30 +224,39 @@ export default function Home() {
     const owned = new Set<string>();
     let balance = 0n;
     try { balance = BigInt((await contract.balanceOf(account)).toString()); } catch {}
+    if (balance === 0n) return [];
 
     for (let i = 0n; i < balance; i++) {
       try { owned.add((await contract.tokenOfOwnerByIndex(account, i)).toString()); } catch { break; }
     }
+    if (owned.size === Number(balance)) return [...owned];
 
-    if (owned.size < Number(balance)) {
-      try {
-        const transferFilter = contract.filters.Transfer;
-        const receivedLogs = await contract.queryFilter(transferFilter(null, account), 0, "latest");
-        const sentLogs = await contract.queryFilter(transferFilter(account, null), 0, "latest");
-        const candidates = new Set<string>();
-        [...receivedLogs, ...sentLogs].forEach((log) => {
-          const tokenId = getTokenIdFromTransfer(log);
-          if (tokenId) candidates.add(tokenId);
-        });
-        for (const tokenId of candidates) {
-          try {
-            const owner = await contract.ownerOf(tokenId);
-            if (owner.toLowerCase() === account.toLowerCase()) owned.add(tokenId);
-            else owned.delete(tokenId);
-          } catch {}
-        }
-      } catch {}
-    }
+    try {
+      const transferTopic = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+      const paddedAccount = `0x000000000000000000000000${account.slice(2).toLowerCase()}`;
+      const candidates = new Set<string>();
+      const currentBlock = await readProvider.getBlockNumber();
+      const chunkSize = 999;
+
+      for (let toBlock = currentBlock; toBlock > 0 && candidates.size < Number(balance) * 3; toBlock -= chunkSize) {
+        const fromBlock = Math.max(0, toBlock - chunkSize + 1);
+        const [receivedLogs, sentLogs] = await Promise.all([
+          readProvider.getLogs({ address: collection.address, topics: [transferTopic, null, paddedAccount], fromBlock, toBlock }),
+          readProvider.getLogs({ address: collection.address, topics: [transferTopic, paddedAccount, null], fromBlock, toBlock }),
+        ]);
+        receivedLogs.forEach((log) => candidates.add(BigInt(log.topics[3]).toString()));
+        sentLogs.forEach((log) => candidates.delete(BigInt(log.topics[3]).toString()));
+        if (candidates.size >= Number(balance)) break;
+      }
+
+      for (const tokenId of candidates) {
+        try {
+          const owner = await contract.ownerOf(tokenId);
+          if (owner.toLowerCase() === account.toLowerCase()) owned.add(tokenId);
+          else owned.delete(tokenId);
+        } catch {}
+      }
+    } catch {}
 
     if (owned.size < Number(balance)) {
       const max = collection.totalSupply > BigInt(INVENTORY_PROBE_LIMIT) ? BigInt(INVENTORY_PROBE_LIMIT) : collection.totalSupply;
@@ -260,7 +269,7 @@ export default function Home() {
     }
 
     return [...owned];
-  }, [account, getTokenIdFromTransfer]);
+  }, [account]);
 
   const loadInventory = useCallback(async () => {
     if (!account || collections.length === 0) return;
