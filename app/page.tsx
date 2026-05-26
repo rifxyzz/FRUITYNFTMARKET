@@ -23,8 +23,8 @@ type StatusState = {
 
 const readProvider = new JsonRpcProvider(CITREA_RPC_URL);
 const zeroAddress = "0x0000000000000000000000000000000000000000";
-const INVENTORY_PROBE_LIMIT = Number(process.env.NEXT_PUBLIC_NFT_PROBE_LIMIT || 2000);
-const MARKET_PROBE_LIMIT = Number(process.env.NEXT_PUBLIC_MARKET_PROBE_LIMIT || 120);
+const INVENTORY_PROBE_LIMIT = Number(process.env.NEXT_PUBLIC_NFT_PROBE_LIMIT || 250);
+const MARKET_PROBE_LIMIT = Number(process.env.NEXT_PUBLIC_MARKET_PROBE_LIMIT || 24);
 
 const formatCbtc = (value: bigint) => `${formatEther(value)} cBTC`;
 
@@ -216,6 +216,7 @@ export default function Home() {
 
   const getTokenIdFromTransfer = useCallback((log: EventLog | Log) => {
     if ("args" in log && log.args?.tokenId !== undefined) return log.args.tokenId.toString();
+    if (log.topics[3]) return BigInt(log.topics[3]).toString();
     return undefined;
   }, []);
 
@@ -230,14 +231,11 @@ export default function Home() {
 
     if (owned.size < Number(balance)) {
       try {
-        const receivedLogs = await contract.queryFilter(contract.filters.Transfer(null, account), 0, "latest");
-        const sentLogs = await contract.queryFilter(contract.filters.Transfer(account, null), 0, "latest");
+        const transferFilter = contract.filters.Transfer;
+        const receivedLogs = await contract.queryFilter(transferFilter(null, account), 0, "latest");
+        const sentLogs = await contract.queryFilter(transferFilter(account, null), 0, "latest");
         const candidates = new Set<string>();
-        receivedLogs.forEach((log) => {
-          const tokenId = getTokenIdFromTransfer(log);
-          if (tokenId) candidates.add(tokenId);
-        });
-        sentLogs.forEach((log) => {
+        [...receivedLogs, ...sentLogs].forEach((log) => {
           const tokenId = getTokenIdFromTransfer(log);
           if (tokenId) candidates.add(tokenId);
         });
@@ -267,7 +265,7 @@ export default function Home() {
   const loadInventory = useCallback(async () => {
     if (!account || collections.length === 0) return;
     setLoadingInventory(true);
-    setStatus({ type: "info", message: "Scanning SatsuMillion NFT with enumerable + Transfer-log fallback…" });
+    setStatus({ type: "info", message: "Syncing SatsuMillion NFT from wallet balance and transfer history…" });
     const found: NftItem[] = [];
 
     for (const collection of collections) {
@@ -293,7 +291,7 @@ export default function Home() {
         let tokenId = index.toString();
         try { tokenId = (await contract.tokenByIndex(index)).toString(); } catch { tokenId = (index + 1n).toString(); }
         const item = await tokenToItem(collection, tokenId);
-        if (item.listing?.active || !MARKETPLACE_ADDRESS) items.push(item);
+        if (item.listing?.active || (!MARKETPLACE_ADDRESS && items.length < MARKET_PROBE_LIMIT)) items.push(item);
       }
     }
 
@@ -393,7 +391,6 @@ export default function Home() {
 
   useEffect(() => { void detectCollections(); }, [detectCollections]);
   useEffect(() => { if (account) void loadInventory(); }, [account, loadInventory]);
-  useEffect(() => { if (collections.length) void loadMarket(); }, [collections, loadMarket]);
 
   return (
     <main>
@@ -422,7 +419,7 @@ export default function Home() {
             <div className="panel-label">{collection.label}</div>
             <h3>{collection.name}</h3>
             <p>{collection.symbol} · {collection.totalSupply.toLocaleString()} supply</p>
-            <p>{collection.listedCount.toLocaleString()} listed · Floor {collection.floorPriceLabel}</p>
+            <p>{MARKETPLACE_ADDRESS ? `${collection.listedCount.toLocaleString()} listed · Floor ${collection.floorPriceLabel}` : "Market loads only when opened"}</p>
             <div className="panel-links">
               <a href={`${CITREA_EXPLORER}/token/${collection.address}`} target="_blank">Explorer</a>
               {collection.collectionUrl && <a href={collection.collectionUrl} target="_blank">Collection</a>}

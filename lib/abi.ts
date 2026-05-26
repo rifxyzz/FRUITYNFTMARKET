@@ -1,4 +1,5 @@
 export const ERC721_ABI = [
+  "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)",
   "function name() view returns (string)",
   "function symbol() view returns (string)",
   "function totalSupply() view returns (uint256)",
