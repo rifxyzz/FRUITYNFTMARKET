@@ -53,7 +53,7 @@ export default function Home() {
 
   const fallbackMeta = useCallback((symbol: string, tokenId: string): NftMetadata => ({
     name: `${symbol || "NFT"} #${tokenId}`,
-    description: "Metadata belum tersedia atau gagal dimuat dari tokenURI.",
+    description: "Metadata is not available or failed to load from tokenURI.",
     image: "",
     attributes: [],
   }), []);
@@ -162,7 +162,7 @@ export default function Home() {
 
   const connectWallet = useCallback(async () => {
     if (!window.ethereum) {
-      setStatus({ type: "error", message: "Wallet tidak terdeteksi. Install MetaMask atau wallet EVM lain dulu." });
+      setStatus({ type: "error", message: "No wallet detected. Please install MetaMask or another EVM wallet first." });
       return;
     }
     try {
@@ -170,7 +170,7 @@ export default function Home() {
       const browserProvider = new BrowserProvider(window.ethereum);
       const network = await browserProvider.getNetwork();
       if (Number(network.chainId) !== CITREA_CHAIN_ID) {
-        setStatus({ type: "info", message: "Switching wallet ke Citrea Mainnet…" });
+        setStatus({ type: "info", message: "Switching wallet to Citrea Mainnet…" });
         try {
           await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CITREA_CHAIN_HEX }] });
         } catch (error) {
@@ -196,7 +196,7 @@ export default function Home() {
       setAccount(address);
       setStatus({ type: "ok", message: `Wallet connected: ${address.slice(0, 6)}…${address.slice(-4)}` });
     } catch (error) {
-      setStatus({ type: "error", message: `Wallet connect gagal: ${error instanceof Error ? error.message : String(error)}` });
+      setStatus({ type: "error", message: `Wallet connection failed: ${error instanceof Error ? error.message : String(error)}` });
     }
   }, []);
 
@@ -231,7 +231,7 @@ export default function Home() {
 
     setInventory(found);
     setLoadingInventory(false);
-    setStatus({ type: "ok", message: `Inventory loaded: ${found.length} NFT terdeteksi.` });
+    setStatus({ type: "ok", message: `Inventory loaded: ${found.length} NFT detected.` });
   }, [account, collections, getReadContract, tokenToItem]);
 
   const loadMarket = useCallback(async () => {
@@ -270,11 +270,11 @@ export default function Home() {
       }
       setStatus({ type: "info", message: `Mint tx submitted: ${tx.hash}` });
       await tx.wait();
-      setStatus({ type: "ok", message: `Mint sukses: ${tx.hash}` });
+      setStatus({ type: "ok", message: `Mint successful: ${tx.hash}` });
       await detectCollections();
       await loadInventory();
     } catch (error) {
-      setStatus({ type: "error", message: `Mint gagal: ${error instanceof Error ? error.message : String(error)}` });
+      setStatus({ type: "error", message: `Mint failed: ${error instanceof Error ? error.message : String(error)}` });
     } finally {
       setMinting(false);
     }
@@ -301,7 +301,7 @@ export default function Home() {
       await loadInventory();
       await loadMarket();
     } catch (error) {
-      setStatus({ type: "error", message: `List gagal: ${error instanceof Error ? error.message : String(error)}` });
+      setStatus({ type: "error", message: `Listing failed: ${error instanceof Error ? error.message : String(error)}` });
     }
   }, [listingPrice, listingTokenId, loadInventory, loadMarket, selected]);
 
@@ -316,11 +316,11 @@ export default function Home() {
       const tx = await marketplace.buyItem(target.collectionAddress, target.tokenId, { value: target.listing.priceWei });
       setStatus({ type: "info", message: `Buy submitted: ${tx.hash}` });
       await tx.wait();
-      setStatus({ type: "ok", message: `Purchase sukses untuk ${target.metadata.name}.` });
+      setStatus({ type: "ok", message: `Purchase successful for ${target.metadata.name}.` });
       await loadInventory();
       await loadMarket();
     } catch (error) {
-      setStatus({ type: "error", message: `Buy gagal: ${error instanceof Error ? error.message : String(error)}` });
+      setStatus({ type: "error", message: `Purchase failed: ${error instanceof Error ? error.message : String(error)}` });
     }
   }, [buyTarget, loadInventory, loadMarket, marketItems]);
 
@@ -343,8 +343,8 @@ export default function Home() {
 
       <section className="hero">
         <p className="eyebrow">Bitcoin L2 · NFT Inventory · Mint · Marketplace</p>
-        <h1>FRUITY NFT market buat koleksi Citrea.</h1>
-        <p className="hero-copy">Dashboard Next.js untuk detect FRUITY NFT dan SatsuMillion NFT, connect wallet, scan inventory, mint jika contract support, serta flow jual-beli lewat marketplace contract opsional.</p>
+        <h1>FRUITY NFT market for Citrea collections.</h1>
+        <p className="hero-copy">A Next.js dashboard to detect FRUITY NFT and SatsuMillion NFT, connect wallets, scan inventory, mint when supported by the contract, and run buy/sell flows through an optional marketplace contract.</p>
         {status && <div className={`status ${status.type}`}>{status.message}</div>}
       </section>
 
@@ -362,7 +362,7 @@ export default function Home() {
       <nav className="tabs">
         {(["inventory", "create", "market"] as TabKey[]).map((key) => (
           <button key={key} className={tab === key ? "active" : ""} onClick={() => setTab(key)}>
-            {key === "inventory" ? "Inventory NFT" : key === "create" ? "Buat NFT" : "Jual Beli NFT"}
+            {key === "inventory" ? "NFT Inventory" : key === "create" ? "Create NFT" : "Buy & Sell NFT"}
           </button>
         ))}
       </nav>
@@ -372,11 +372,11 @@ export default function Home() {
           <div className="section-head">
             <div>
               <p className="eyebrow">Wallet Inventory</p>
-              <h2>Inventory NFT</h2>
+              <h2>NFT Inventory</h2>
             </div>
             <button className="ghost-btn" onClick={loadInventory} disabled={!account || loadingInventory}>{loadingInventory ? "Scanning…" : "Refresh Inventory"}</button>
           </div>
-          {!account ? <Empty text="Connect wallet dulu untuk detect FRUITY dan SatsuMillion NFT." /> : <NftGrid items={inventory} emptyText="Belum ada FRUITY/SatsuMillion NFT terdeteksi di wallet ini." />}
+          {!account ? <Empty text="Connect your wallet first to detect FRUITY and SatsuMillion NFTs." /> : <NftGrid items={inventory} emptyText="No FRUITY or SatsuMillion NFTs detected in this wallet yet." />}
         </section>
       )}
 
@@ -384,8 +384,8 @@ export default function Home() {
         <section className="section-card split">
           <div>
             <p className="eyebrow">Mint / Create</p>
-            <h2>Buat NFT</h2>
-            <p className="muted">Pilih collection, lalu mint via function umum: mint(uint256), mint(), atau safeMint(address). Kalau contract tidak expose mint publik, tombol akan tetap mencoba tapi transaksi bisa revert.</p>
+            <h2>Create NFT</h2>
+            <p className="muted">Choose a collection, then mint through common functions: mint(uint256), mint(), or safeMint(address). If the contract does not expose public minting, the button can still try, but the transaction may revert.</p>
           </div>
           <div className="form-card">
             <label>Collection</label>
@@ -403,38 +403,38 @@ export default function Home() {
           <div className="section-head">
             <div>
               <p className="eyebrow">Marketplace</p>
-              <h2>Jual Beli NFT</h2>
+              <h2>Buy & Sell NFT</h2>
             </div>
             <button className="ghost-btn" onClick={loadMarket} disabled={loadingMarket}>{loadingMarket ? "Loading…" : "Refresh Market"}</button>
           </div>
 
-          {!MARKETPLACE_ADDRESS && <div className="status info">Set NEXT_PUBLIC_MARKETPLACE_ADDRESS di .env untuk enable transaksi list/buy real. Tanpa itu, UI market tampil sebagai preview koleksi.</div>}
+          {!MARKETPLACE_ADDRESS && <div className="status info">Set NEXT_PUBLIC_MARKETPLACE_ADDRESS in .env to enable real list/buy transactions. Without it, the market UI works as a collection preview.</div>}
 
           <div className="market-actions">
             <div className="form-card">
-              <h3>Jual NFT</h3>
+              <h3>Sell NFT</h3>
               <label>Collection</label>
               <select value={selectedCollection} onChange={(event) => setSelectedCollection(event.target.value as CollectionKey)}>
                 {collections.map((collection) => <option key={collection.key} value={collection.key}>{collection.label}</option>)}
               </select>
               <label>Token ID</label>
-              <input value={listingTokenId} onChange={(event) => setListingTokenId(event.target.value)} placeholder="contoh: 1" />
-              <label>Harga cBTC</label>
-              <input value={listingPrice} onChange={(event) => setListingPrice(event.target.value)} placeholder="contoh: 0.01" />
+              <input value={listingTokenId} onChange={(event) => setListingTokenId(event.target.value)} placeholder="example: 1" />
+              <label>cBTC Price</label>
+              <input value={listingPrice} onChange={(event) => setListingPrice(event.target.value)} placeholder="example: 0.01" />
               <button className="primary-btn" onClick={listNft} disabled={!account || !MARKETPLACE_ADDRESS}>List NFT</button>
             </div>
             <div className="form-card">
-              <h3>Beli NFT</h3>
+              <h3>Buy NFT</h3>
               <label>Listing</label>
               <select value={buyTarget} onChange={(event) => setBuyTarget(event.target.value)}>
-                <option value="">Pilih listing</option>
+                <option value="">Choose a listing</option>
                 {marketItems.filter((item) => item.listing?.active).map((item) => <option key={`${item.collectionAddress}:${item.tokenId}`} value={`${item.collectionAddress}:${item.tokenId}`}>{item.metadata.name} · {item.listing?.priceLabel}</option>)}
               </select>
               <button className="primary-btn" onClick={() => void buyNft()} disabled={!account || !MARKETPLACE_ADDRESS || !buyTarget}>Buy NFT</button>
             </div>
           </div>
 
-          <NftGrid items={marketItems} emptyText="Belum ada listing aktif terbaca." onBuy={MARKETPLACE_ADDRESS ? buyNft : undefined} />
+          <NftGrid items={marketItems} emptyText="No active listings found yet." onBuy={MARKETPLACE_ADDRESS ? buyNft : undefined} />
         </section>
       )}
     </main>
