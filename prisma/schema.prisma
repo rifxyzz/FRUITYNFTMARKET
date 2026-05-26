@@ -1,0 +1,74 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Token {
+  id              Int       @id @default(autoincrement())
+  tokenId         String
+  contractAddress String
+  owner           String
+  metadataUri     String?
+  name            String?
+  description     String?
+  image           String?
+  attributes      Json?
+  rarityScore     Float?
+  rarityRank      Int?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  listing         Listing?
+  transfers       Transfer[]
+
+  @@unique([tokenId, contractAddress])
+  @@index([owner])
+  @@index([contractAddress])
+}
+
+model Transfer {
+  id              Int       @id @default(autoincrement())
+  tokenId         String
+  contractAddress String
+  fromAddress     String
+  toAddress       String
+  blockNumber     Int
+  txHash          String
+  createdAt       DateTime  @default(now())
+
+  token           Token     @relation(fields: [tokenId, contractAddress], references: [tokenId, contractAddress])
+
+  @@index([toAddress])
+  @@index([fromAddress])
+  @@index([blockNumber])
+}
+
+model Listing {
+  id              Int       @id @default(autoincrement())
+  tokenId         String
+  contractAddress String
+  seller          String
+  priceWei        String
+  active          Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  token           Token     @relation(fields: [tokenId, contractAddress], references: [tokenId, contractAddress])
+
+  @@unique([tokenId, contractAddress])
+  @@index([active])
+  @@index([seller])
+}
+
+model IndexerState {
+  id              Int       @id @default(autoincrement())
+  contractAddress String    @unique
+  lastIndexedBlock Int      @default(0)
+  updatedAt       DateTime  @updatedAt
+}
