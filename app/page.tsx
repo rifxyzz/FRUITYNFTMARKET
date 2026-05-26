@@ -1,6 +1,7 @@
 "use client";
 
 import { BrowserProvider, Contract, JsonRpcProvider, formatEther, parseEther } from "ethers";
+import type { EventLog, Log } from "ethers";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ERC721_ABI, MARKETPLACE_ABI } from "@/lib/abi";
 import {
@@ -213,39 +214,72 @@ export default function Home() {
     }
   }, []);
 
+  const getTokenIdFromTransfer = useCallback((log: EventLog | Log) => {
+    if ("args" in log && log.args?.tokenId !== undefined) return log.args.tokenId.toString();
+    return undefined;
+  }, []);
+
+  const loadOwnedTokenIds = useCallback(async (collection: CollectionState, contract: Contract) => {
+    const owned = new Set<string>();
+    let balance = 0n;
+    try { balance = BigInt((await contract.balanceOf(account)).toString()); } catch {}
+
+    for (let i = 0n; i < balance; i++) {
+      try { owned.add((await contract.tokenOfOwnerByIndex(account, i)).toString()); } catch { break; }
+    }
+
+    if (owned.size < Number(balance)) {
+      try {
+        const receivedLogs = await contract.queryFilter(contract.filters.Transfer(null, account), 0, "latest");
+        const sentLogs = await contract.queryFilter(contract.filters.Transfer(account, null), 0, "latest");
+        const candidates = new Set<string>();
+        receivedLogs.forEach((log) => {
+          const tokenId = getTokenIdFromTransfer(log);
+          if (tokenId) candidates.add(tokenId);
+        });
+        sentLogs.forEach((log) => {
+          const tokenId = getTokenIdFromTransfer(log);
+          if (tokenId) candidates.add(tokenId);
+        });
+        for (const tokenId of candidates) {
+          try {
+            const owner = await contract.ownerOf(tokenId);
+            if (owner.toLowerCase() === account.toLowerCase()) owned.add(tokenId);
+            else owned.delete(tokenId);
+          } catch {}
+        }
+      } catch {}
+    }
+
+    if (owned.size < Number(balance)) {
+      const max = collection.totalSupply > BigInt(INVENTORY_PROBE_LIMIT) ? BigInt(INVENTORY_PROBE_LIMIT) : collection.totalSupply;
+      for (let probe = 0n; probe <= max && owned.size < Number(balance); probe++) {
+        try {
+          const owner = await contract.ownerOf(probe);
+          if (owner.toLowerCase() === account.toLowerCase()) owned.add(probe.toString());
+        } catch {}
+      }
+    }
+
+    return [...owned];
+  }, [account, getTokenIdFromTransfer]);
+
   const loadInventory = useCallback(async () => {
     if (!account || collections.length === 0) return;
     setLoadingInventory(true);
-    setStatus({ type: "info", message: "Scanning inventory FRUITY + SatsuMillion NFT…" });
+    setStatus({ type: "info", message: "Scanning SatsuMillion NFT with enumerable + Transfer-log fallback…" });
     const found: NftItem[] = [];
 
     for (const collection of collections) {
       const contract = getReadContract(collection.address);
-      let balance = 0n;
-      try { balance = BigInt((await contract.balanceOf(account)).toString()); } catch {}
-
-      for (let i = 0n; i < balance; i++) {
-        let tokenId = "";
-        try {
-          tokenId = (await contract.tokenOfOwnerByIndex(account, i)).toString();
-        } catch {
-          const max = collection.totalSupply > BigInt(INVENTORY_PROBE_LIMIT) ? BigInt(INVENTORY_PROBE_LIMIT) : collection.totalSupply;
-          for (let probe = 0n; probe <= max; probe++) {
-            try {
-              const owner = await contract.ownerOf(probe);
-              if (owner.toLowerCase() === account.toLowerCase()) found.push(await tokenToItem(collection, probe.toString(), owner));
-            } catch {}
-          }
-          break;
-        }
-        if (tokenId) found.push(await tokenToItem(collection, tokenId, account));
-      }
+      const tokenIds = await loadOwnedTokenIds(collection, contract);
+      for (const tokenId of tokenIds) found.push(await tokenToItem(collection, tokenId, account));
     }
 
     setInventory(found);
     setLoadingInventory(false);
     setStatus({ type: "ok", message: `Inventory loaded: ${found.length} NFT detected.` });
-  }, [account, collections, getReadContract, tokenToItem]);
+  }, [account, collections, getReadContract, loadOwnedTokenIds, tokenToItem]);
 
   const loadMarket = useCallback(async () => {
     if (collections.length === 0) return;
@@ -363,21 +397,22 @@ export default function Home() {
 
   return (
     <main>
+      <div className="fruity-bg" />
       <header className="site-header">
         <div className="logo-wrap">
           <div className="logo-mark">🍊</div>
           <div>
-            <strong>FRUITY <span>NFT</span> Market</strong>
-            <small>Citrea Mainnet · FRUITY + SatsuMillion detector</small>
+            <strong>Satsu<span>Million</span> Mint</strong>
+            <small>Citrea Mainnet · Holder detector + mint deck</small>
           </div>
         </div>
         <button className="connect-btn" onClick={connectWallet}>{account ? shortAccount : "Connect Wallet"}</button>
       </header>
 
       <section className="hero">
-        <p className="eyebrow">Bitcoin L2 · NFT Inventory · Mint · Marketplace</p>
-        <h1>FRUITY NFT market for Citrea collections.</h1>
-        <p className="hero-copy">A Next.js dashboard to detect FRUITY NFT and SatsuMillion NFT, connect wallets, scan inventory, mint when supported by the contract, and run buy/sell flows through an optional marketplace contract.</p>
+        <p className="eyebrow">SatsuMillion · Citrea NFT Mint</p>
+        <h1>Mint, scan, and flex your SatsuMillion stack.</h1>
+        <p className="hero-copy">A Yuzu-style mint dashboard with wallet connect, contract-aware holder detection, and a cleaner NFT deck for SatsuMillion on Citrea.</p>
         {status && <div className={`status ${status.type}`}>{status.message}</div>}
       </section>
 
@@ -399,7 +434,7 @@ export default function Home() {
       <nav className="tabs">
         {(["inventory", "create", "market"] as TabKey[]).map((key) => (
           <button key={key} className={tab === key ? "active" : ""} onClick={() => setTab(key)}>
-            {key === "inventory" ? "NFT Inventory" : key === "create" ? "Create NFT" : "Buy & Sell NFT"}
+            {key === "inventory" ? "My NFTs" : key === "create" ? "Mint" : "Market"}
           </button>
         ))}
       </nav>
@@ -413,7 +448,7 @@ export default function Home() {
             </div>
             <button className="ghost-btn" onClick={loadInventory} disabled={!account || loadingInventory}>{loadingInventory ? "Scanning…" : "Refresh Inventory"}</button>
           </div>
-          {!account ? <Empty text="Connect your wallet first to detect FRUITY and SatsuMillion NFTs." /> : <NftGrid items={inventory} emptyText="No FRUITY or SatsuMillion NFTs detected in this wallet yet." />}
+          {!account ? <Empty text="Connect your wallet first to detect your SatsuMillion NFTs." /> : <NftGrid items={inventory} emptyText="No SatsuMillion NFTs detected in this wallet yet." />}
         </section>
       )}
 
@@ -421,8 +456,8 @@ export default function Home() {
         <section className="section-card split">
           <div>
             <p className="eyebrow">Mint / Create</p>
-            <h2>Create NFT</h2>
-            <p className="muted">Choose a collection, then mint through common functions: mint(uint256), mint(), or safeMint(address). If the contract does not expose public minting, the button can still try, but the transaction may revert.</p>
+            <h2>Mint SatsuMillion</h2>
+            <p className="muted">Connect wallet, let the app detect the live contract state, then mint through common functions: mint(uint256), mint(), or safeMint(address). If minting is gated, the transaction may revert from the contract.</p>
           </div>
           <div className="form-card">
             <label>Collection</label>
