@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Citrea NFT</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;700;800;900&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --orange: #f7931a;
+    --orange-dim: #c97310;
+    --orange-glow: rgba(247,147,26,0.18);
+    --orange-light: #fbb040;
+    --black: #080706;
+    --surface: #111009;
+    --card: #18150e;
+    --card-border: #2a2218;
+    --text: #f5ede0;
+    --muted: #7a6a52;
+    --mono: 'Space Mono', monospace;
+    --display: 'Syne', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--black);
+    color: var(--text);
+    font-family: var(--mono);
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* ── NOISE OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  /* ── GRID BG ── */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(247,147,26,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(247,147,26,0.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+  /* ── HEADER ── */
+  header {
+    border-bottom: 1px solid var(--card-border);
+    background: linear-gradient(180deg, rgba(8,7,6,0.98) 0%, rgba(8,7,6,0.8) 100%);
+    backdrop-filter: blur(12px);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .logo {
+    font-family: var(--display);
+    font-weight: 900;
+    font-size: 1.5rem;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .logo-mark {
+    width: 32px; height: 32px;
+    background: var(--orange);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 0 18px var(--orange-glow);
+    flex-shrink: 0;
+  }
+  .logo-text { color: var(--text); }
+  .logo-text span { color: var(--orange); }
+
+  .badge-chain {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--orange);
+    border: 1px solid var(--orange-dim);
+    border-radius: 4px;
+    padding: 2px 8px;
+    letter-spacing: 0.08em;
+    background: rgba(247,147,26,0.06);
+  }
+
+  #connectBtn {
+    background: var(--orange);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  #connectBtn:hover { background: var(--orange-light); box-shadow: 0 0 20px rgba(247,147,26,0.4); }
+  #connectBtn.connected { background: transparent; color: var(--orange); border: 1px solid var(--orange-dim); }
+
+  /* ── HERO ── */
+  .hero {
+    padding: 80px 24px 60px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .hero-eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--orange);
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .hero-eyebrow::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, var(--orange-dim), transparent); }
+  .hero h1 {
+    font-family: var(--display);
+    font-size: clamp(3rem, 7vw, 6rem);
+    font-weight: 900;
+    line-height: 0.95;
+    letter-spacing: -0.03em;
+    margin-bottom: 24px;
+  }
+  .hero h1 .line2 { color: var(--orange); display: block; }
+  .hero-sub {
+    font-size: 13px;
+    color: var(--muted);
+    max-width: 480px;
+    line-height: 1.7;
+    margin-bottom: 40px;
+  }
+
+  /* ── COLLECTION INFO ── */
+  #collectionInfo {
+    display: none;
+    gap: 1px;
+    background: var(--card-border);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 60px;
+  }
+  #collectionInfo.visible { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+  .stat-box {
+    background: var(--card);
+    padding: 24px 28px;
+  }
+  .stat-label { font-size: 10px; letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
+  .stat-value { font-family: var(--display); font-size: 1.6rem; font-weight: 800; color: var(--text); line-height: 1; }
+  .stat-value.orange { color: var(--orange); }
+
+  /* ── LOADING SKELETON ── */
+  @keyframes shimmer {
+    0% { background-position: -400px 0; }
+    100% { background-position: 400px 0; }
+  }
+  .skeleton {
+    background: linear-gradient(90deg, var(--card) 25%, #221d13 50%, var(--card) 75%);
+    background-size: 400px 100%;
+    animation: shimmer 1.4s infinite;
+    border-radius: 6px;
+  }
+
+  /* ── SECTION ── */
+  .section { padding: 0 24px 80px; max-width: 1200px; margin: 0 auto; }
+  .section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 32px; gap: 16px;
+  }
+  .section-title {
+    font-family: var(--display);
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  .count-pill {
+    font-size: 11px;
+    background: var(--orange-glow);
+    border: 1px solid var(--orange-dim);
+    color: var(--orange);
+    border-radius: 20px;
+    padding: 4px 12px;
+  }
+
+  /* ── NFT GRID ── */
+  .nft-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+  }
+
+  .nft-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+    animation: fadeUp 0.4s ease both;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .nft-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--orange-dim);
+    box-shadow: 0 12px 40px rgba(247,147,26,0.12);
+  }
+  .nft-img-wrap {
+    width: 100%; aspect-ratio: 1;
+    background: #12100a;
+    position: relative; overflow: hidden;
+  }
+  .nft-img-wrap img {
+    width: 100%; height: 100%; object-fit: cover;
+    display: block; transition: transform 0.3s;
+  }
+  .nft-card:hover .nft-img-wrap img { transform: scale(1.04); }
+  .nft-img-placeholder {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2.5rem;
+    background: radial-gradient(ellipse at center, #1e1810 0%, #0d0b08 100%);
+  }
+  .nft-body { padding: 16px; }
+  .nft-name {
+    font-family: var(--display); font-weight: 700; font-size: 1rem;
+    margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .nft-id { font-size: 11px; color: var(--muted); }
+  .nft-attrs {
+    display: flex; flex-wrap: wrap; gap: 4px; margin-top: 12px;
+  }
+  .attr-pill {
+    font-size: 10px; padding: 3px 8px;
+    background: var(--orange-glow); border: 1px solid rgba(247,147,26,0.2);
+    border-radius: 4px; color: var(--orange-light);
+  }
+
+  /* ── MINT SECTION ── */
+  #mintSection {
+    display: none;
+    background: linear-gradient(135deg, #1a1208 0%, #0e0b06 100%);
+    border: 1px solid var(--orange-dim);
+    border-radius: 20px;
+    padding: 40px;
+    margin-bottom: 60px;
+    position: relative;
+    overflow: hidden;
+  }
+  #mintSection.visible { display: block; }
+  #mintSection::before {
+    content: '';
+    position: absolute; top: -60px; right: -60px;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, rgba(247,147,26,0.15), transparent 70%);
+    pointer-events: none;
+  }
+  .mint-inner { display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+  .mint-info h3 { font-family: var(--display); font-size: 1.6rem; font-weight: 800; margin-bottom: 8px; }
+  .mint-info p { font-size: 12px; color: var(--muted); line-height: 1.6; }
+  .mint-price { font-size: 1.1rem; color: var(--orange); margin-top: 10px; }
+  #mintBtn {
+    background: var(--orange);
+    color: #000;
+    border: none;
+    border-radius: 12px;
+    padding: 16px 36px;
+    font-family: var(--display);
+    font-size: 1rem;
+    font-weight: 800;
+    cursor: pointer;
+    letter-spacing: -0.01em;
+    transition: all 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  #mintBtn:hover { background: var(--orange-light); box-shadow: 0 0 30px rgba(247,147,26,0.5); transform: scale(1.02); }
+  #mintBtn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* ── STATUS ── */
+  #statusMsg {
+    display: none;
+    font-size: 12px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+    border-left: 3px solid;
+  }
+  #statusMsg.info  { background: rgba(247,147,26,0.08); border-color: var(--orange); color: var(--orange); display: block; }
+  #statusMsg.error { background: rgba(255,60,60,0.08); border-color: #ff4444; color: #ff7777; display: block; }
+  #statusMsg.ok    { background: rgba(80,200,120,0.08); border-color: #50c878; color: #80e8a0; display: block; }
+
+  /* ── MODAL ── */
+  #modal {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85); z-index: 200;
+    align-items: center; justify-content: center;
+    padding: 24px;
+    backdrop-filter: blur(6px);
+  }
+  #modal.open { display: flex; }
+  .modal-box {
+    background: var(--card);
+    border: 1px solid var(--orange-dim);
+    border-radius: 20px;
+    width: 100%; max-width: 520px;
+    overflow: hidden;
+    animation: popIn 0.2s ease;
+  }
+  @keyframes popIn {
+    from { opacity: 0; transform: scale(0.92); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  .modal-img { width: 100%; aspect-ratio: 1; object-fit: cover; background: #12100a; }
+  .modal-img-placeholder {
+    width: 100%; aspect-ratio: 1;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 5rem;
+    background: radial-gradient(ellipse at center, #1e1810, #0d0b08);
+  }
+  .modal-body { padding: 24px; }
+  .modal-name { font-family: var(--display); font-size: 1.6rem; font-weight: 800; margin-bottom: 4px; }
+  .modal-id { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+  .modal-desc { font-size: 13px; color: var(--muted); line-height: 1.7; margin-bottom: 16px; }
+  .modal-attrs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
+  .modal-attr {
+    font-size: 11px; padding: 6px 12px;
+    background: var(--orange-glow); border: 1px solid rgba(247,147,26,0.25);
+    border-radius: 6px;
+  }
+  .modal-attr span { color: var(--muted); display: block; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 2px; }
+  .modal-attr strong { color: var(--orange-light); }
+  .modal-footer { display: flex; gap: 12px; }
+  .btn-outline {
+    flex: 1; background: transparent; border: 1px solid var(--card-border);
+    color: var(--text); border-radius: 8px; padding: 10px;
+    font-family: var(--mono); font-size: 12px; cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .btn-outline:hover { border-color: var(--orange-dim); color: var(--orange); }
+  .btn-close {
+    background: var(--orange); border: none; color: #000;
+    border-radius: 8px; padding: 10px 20px;
+    font-family: var(--mono); font-size: 12px; font-weight: 700;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .btn-close:hover { background: var(--orange-light); }
+
+  /* ── EMPTY ── */
+  .empty {
+    text-align: center; padding: 80px 24px;
+    color: var(--muted); font-size: 13px; line-height: 1.8;
+  }
+  .empty-icon { font-size: 3rem; margin-bottom: 16px; opacity: 0.5; }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: 1px solid var(--card-border);
+    padding: 32px 24px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+  footer a { color: var(--orange); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  /* ── PULSE DOT ── */
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--orange);
+    display: inline-block;
+    box-shadow: 0 0 8px var(--orange);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ── LOAD MORE ── */
+  #loadMoreBtn {
+    display: none;
+    background: transparent;
+    border: 1px solid var(--orange-dim);
+    color: var(--orange);
+    border-radius: 10px;
+    padding: 14px 40px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin: 32px auto 0;
+  }
+  #loadMoreBtn:hover { background: var(--orange-glow); box-shadow: 0 0 20px rgba(247,147,26,0.2); }
+  .load-more-wrap { text-align: center; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 2.8rem; }
+    .mint-inner { flex-direction: column; align-items: flex-start; }
+    #mintBtn { width: 100%; }
+    .modal-footer { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-mark">₿</div>
+      <span class="logo-text">Citrea<span>NFT</span></span>
+      <span class="badge-chain">MAINNET</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span class="dot"></span>
+      <button id="connectBtn" onclick="connectWallet()">Connect Wallet</button>
+    </div>
+  </div>
+</header>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-eyebrow">Bitcoin L2 · ZK Rollup · EVM Compatible</div>
+  <h1>
+    The Future of<br>
+    <span class="line2">Bitcoin NFTs</span>
+  </h1>
+  <p class="hero-sub">
+    Explore and collect NFTs on Citrea — the first ZK rollup that uses Bitcoin as both
+    data availability and settlement layer via the Clementine bridge.
+  </p>
+
+  <div id="statusMsg"></div>
+
+  <!-- COLLECTION STATS -->
+  <div id="collectionInfo">
+    <div class="stat-box">
+      <div class="stat-label">Collection</div>
+      <div class="stat-value" id="statName">—</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Symbol</div>
+      <div class="stat-value orange" id="statSymbol">—</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Total Supply</div>
+      <div class="stat-value" id="statSupply">—</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Contract</div>
+      <div class="stat-value" id="statContract" style="font-size:0.7rem;color:var(--muted);">—</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Network</div>
+      <div class="stat-value orange" style="font-size:1rem;">Citrea</div>
+    </div>
+  </div>
+</div>
+
+<!-- MINT SECTION -->
+<div class="section">
+  <div id="mintSection">
+    <div class="mint-inner">
+      <div class="mint-info">
+        <h3>Mint an NFT</h3>
+        <p>Be part of the first NFT ecosystem on Bitcoin's ZK rollup.<br>Secured by Bitcoin, powered by zero-knowledge proofs.</p>
+        <div class="mint-price" id="mintPrice"></div>
+      </div>
+      <button id="mintBtn" onclick="mintNFT()" disabled>Connect to Mint</button>
+    </div>
+  </div>
+</div>
+
+<!-- NFT GALLERY -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-title">Gallery</div>
+    <div class="count-pill" id="countPill">Loading…</div>
+  </div>
+  <div class="nft-grid" id="nftGrid">
+    <!-- Skeleton cards -->
+    <div class="nft-card" style="animation:none">
+      <div class="nft-img-wrap skeleton" style="aspect-ratio:1;border-radius:0"></div>
+      <div class="nft-body"><div class="skeleton" style="height:18px;width:70%;margin-bottom:8px"></div><div class="skeleton" style="height:12px;width:40%"></div></div>
+    </div>
+    <div class="nft-card" style="animation:none">
+      <div class="nft-img-wrap skeleton" style="aspect-ratio:1;border-radius:0"></div>
+      <div class="nft-body"><div class="skeleton" style="height:18px;width:70%;margin-bottom:8px"></div><div class="skeleton" style="height:12px;width:40%"></div></div>
+    </div>
+    <div class="nft-card" style="animation:none">
+      <div class="nft-img-wrap skeleton" style="aspect-ratio:1;border-radius:0"></div>
+      <div class="nft-body"><div class="skeleton" style="height:18px;width:70%;margin-bottom:8px"></div><div class="skeleton" style="height:12px;width:40%"></div></div>
+    </div>
+    <div class="nft-card" style="animation:none">
+      <div class="nft-img-wrap skeleton" style="aspect-ratio:1;border-radius:0"></div>
+      <div class="nft-body"><div class="skeleton" style="height:18px;width:70%;margin-bottom:8px"></div><div class="skeleton" style="height:12px;width:40%"></div></div>
+    </div>
+  </div>
+  <div class="load-more-wrap">
+    <button id="loadMoreBtn" onclick="loadMore()">Load More</button>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div id="modal" onclick="closeModal(event)">
+  <div class="modal-box" id="modalBox">
+    <div id="modalImgWrap"></div>
+    <div class="modal-body">
+      <div class="modal-name" id="modalName"></div>
+      <div class="modal-id" id="modalId"></div>
+      <div class="modal-desc" id="modalDesc"></div>
+      <div class="modal-attrs" id="modalAttrs"></div>
+      <div class="modal-footer">
+        <button class="btn-outline" id="modalExplorer" onclick="">View on Explorer</button>
+        <button class="btn-close" onclick="document.getElementById('modal').classList.remove('open')">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <p>Built on <a href="https://citrea.xyz" target="_blank">Citrea</a> · Bitcoin's first ZK Rollup ·
+  Contract: <a href="https://explorer.mainnet.citrea.xyz/address/0x55F8E43d2719E154E778B18a874BD099F0162bBA" target="_blank">0x55F8E43d…bBA</a></p>
+</footer>
+
+<script>
+// ═══════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════
+const CONTRACT_ADDRESS = '0x55F8E43d2719E154E778B18a874BD099F0162bBA';
+const CITREA_CHAIN_ID  = 4114;
+const CITREA_CHAIN_HEX = '0x1012';
+const RPC_URL          = 'https://rpc.mainnet.citrea.xyz';
+const EXPLORER         = 'https://explorer.mainnet.citrea.xyz';
+
+// ERC-721 ABI (extended auto-detect)
+const ERC721_ABI = [
+  'function name() view returns (string)',
+  'function symbol() view returns (string)',
+  'function totalSupply() view returns (uint256)',
+  'function tokenURI(uint256 tokenId) view returns (string)',
+  'function ownerOf(uint256 tokenId) view returns (address)',
+  'function balanceOf(address owner) view returns (uint256)',
+  'function tokenByIndex(uint256 index) view returns (uint256)',
+  'function tokenOfOwnerByIndex(address owner, uint256 index) view returns (uint256)',
+  'function supportsInterface(bytes4 interfaceId) view returns (bool)',
+  // common mint signatures
+  'function mint(uint256 quantity) payable',
+  'function mint() payable',
+  'function mintPrice() view returns (uint256)',
+  'function price() view returns (uint256)',
+  'function cost() view returns (uint256)',
+  'function maxSupply() view returns (uint256)',
+  'function paused() view returns (bool)',
+];
+
+// ═══════════════════════════════════
+//  STATE
+// ═══════════════════════════════════
+let provider, signer, contract, readContract;
+let connectedAddress = null;
+let collectionName   = '';
+let collectionSymbol = '';
+let totalSupply      = 0;
+let loadedTokens     = [];
+let pageSize         = 12;
+let currentPage      = 0;
+let metaCache        = {};
+let hasMint          = false;
+let mintPrice        = null;
+
+// ═══════════════════════════════════
+//  INIT
+// ═══════════════════════════════════
+window.addEventListener('load', async () => {
+  await initReadOnly();
+});
+
+async function initReadOnly() {
+  try {
+    const rpc = new ethers.providers.JsonRpcProvider(RPC_URL);
+    readContract = new ethers.Contract(CONTRACT_ADDRESS, ERC721_ABI, rpc);
+    await loadCollectionInfo();
+  } catch(e) {
+    showStatus('Failed to connect to Citrea RPC: ' + e.message, 'error');
+  }
+}
+
+async function loadCollectionInfo() {
+  try {
+    collectionName   = await readContract.name();
+    collectionSymbol = await readContract.symbol();
+    totalSupply      = (await readContract.totalSupply()).toNumber();
+
+    document.getElementById('statName').textContent   = collectionName;
+    document.getElementById('statSymbol').textContent = collectionSymbol;
+    document.getElementById('statSupply').textContent = totalSupply.toLocaleString();
+    document.getElementById('statContract').textContent = CONTRACT_ADDRESS.slice(0,6) + '…' + CONTRACT_ADDRESS.slice(-4);
+    document.getElementById('collectionInfo').classList.add('visible');
+    document.title = collectionName + ' — Citrea NFT';
+
+    // detect mint
+    await detectMintCapability();
+
+    // load gallery
+    await loadGallery();
+  } catch(e) {
+    console.error('loadCollectionInfo', e);
+    showStatus('Could not read contract. Make sure it\'s an ERC-721 on Citrea Mainnet.', 'error');
+    document.getElementById('nftGrid').innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><p>Contract not reachable. Check your network.</p></div>`;
+    document.getElementById('countPill').textContent = 'Error';
+  }
+}
+
+async function detectMintCapability() {
+  // try to read mint price
+  try {
+    const mp = await readContract.mintPrice();
+    mintPrice = mp; hasMint = true;
+  } catch {}
+  if (!mintPrice) try {
+    const mp = await readContract.price();
+    mintPrice = mp; hasMint = true;
+  } catch {}
+  if (!mintPrice) try {
+    const mp = await readContract.cost();
+    mintPrice = mp; hasMint = true;
+  } catch {}
+
+  if (hasMint) {
+    const priceLabel = mintPrice && mintPrice.gt(0)
+      ? ethers.utils.formatEther(mintPrice) + ' cBTC'
+      : 'FREE';
+    document.getElementById('mintPrice').textContent = 'Price: ' + priceLabel;
+    document.getElementById('mintSection').classList.add('visible');
+  }
+}
+
+async function loadGallery() {
+  const grid = document.getElementById('nftGrid');
+  grid.innerHTML = '';
+
+  if (totalSupply === 0) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">🌑</div><p>No NFTs minted yet.<br>Be the first!</p></div>`;
+    document.getElementById('countPill').textContent = '0 items';
+    return;
+  }
+
+  // Build token ID list (try Enumerable, fall back to sequential 0..N-1 or 1..N)
+  document.getElementById('countPill').textContent = totalSupply.toLocaleString() + ' items';
+  currentPage = 0;
+  await renderPage();
+}
+
+async function renderPage() {
+  const grid = document.getElementById('nftGrid');
+  const start = currentPage * pageSize;
+  const end   = Math.min(start + pageSize, totalSupply);
+
+  for (let i = start; i < end; i++) {
+    let tokenId;
+    try {
+      tokenId = (await readContract.tokenByIndex(i)).toNumber();
+    } catch {
+      // not enumerable; assume 0-indexed or 1-indexed
+      tokenId = i; // try 0-based first
+    }
+
+    const card = createSkeletonCard(tokenId);
+    grid.appendChild(card);
+    loadTokenMeta(tokenId, card);
+  }
+
+  currentPage++;
+  const loadMoreBtn = document.getElementById('loadMoreBtn');
+  if (currentPage * pageSize < totalSupply) {
+    loadMoreBtn.style.display = 'inline-block';
+  } else {
+    loadMoreBtn.style.display = 'none';
+  }
+}
+
+async function loadMore() {
+  await renderPage();
+}
+
+function createSkeletonCard(tokenId) {
+  const card = document.createElement('div');
+  card.className = 'nft-card';
+  card.id = 'card-' + tokenId;
+  card.innerHTML = `
+    <div class="nft-img-wrap skeleton" style="aspect-ratio:1;border-radius:0"></div>
+    <div class="nft-body">
+      <div class="skeleton" style="height:18px;width:70%;margin-bottom:8px"></div>
+      <div class="skeleton" style="height:12px;width:40%"></div>
+    </div>`;
+  return card;
+}
+
+async function loadTokenMeta(tokenId, card) {
+  if (metaCache[tokenId]) { renderCard(card, tokenId, metaCache[tokenId]); return; }
+
+  try {
+    let uri = await readContract.tokenURI(tokenId);
+    uri = resolveURI(uri, tokenId);
+    let meta = { name: collectionSymbol + ' #' + tokenId, description: '', image: '', attributes: [] };
+
+    if (uri) {
+      try {
+        const res = await fetch(uri);
+        if (res.ok) {
+          const json = await res.json();
+          meta.name        = json.name || meta.name;
+          meta.description = json.description || '';
+          meta.image       = resolveURI(json.image || '', tokenId);
+          meta.attributes  = json.attributes || json.traits || [];
+        }
+      } catch {}
+    }
+
+    metaCache[tokenId] = meta;
+    renderCard(card, tokenId, meta);
+  } catch(e) {
+    metaCache[tokenId] = { name: collectionSymbol + ' #' + tokenId, description: '', image: '', attributes: [] };
+    renderCard(card, tokenId, metaCache[tokenId]);
+  }
+}
+
+function resolveURI(uri, tokenId) {
+  if (!uri) return '';
+  if (uri.startsWith('data:')) return uri;
+  if (uri.startsWith('ipfs://')) return 'https://ipfs.io/ipfs/' + uri.slice(7);
+  if (uri.startsWith('http')) return uri;
+  return uri;
+}
+
+function renderCard(card, tokenId, meta) {
+  const attrs = meta.attributes.slice(0,3).map(a =>
+    `<span class="attr-pill">${a.trait_type ? a.trait_type+': ' : ''}${a.value}</span>`
+  ).join('');
+
+  card.innerHTML = `
+    <div class="nft-img-wrap">
+      ${meta.image
+        ? `<img src="${meta.image}" alt="${escHtml(meta.name)}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=nft-img-placeholder>🖼️</div>'" />`
+        : `<div class="nft-img-placeholder">🖼️</div>`}
+    </div>
+    <div class="nft-body">
+      <div class="nft-name">${escHtml(meta.name)}</div>
+      <div class="nft-id">#${tokenId} · ${collectionSymbol}</div>
+      ${attrs ? `<div class="nft-attrs">${attrs}</div>` : ''}
+    </div>`;
+  card.onclick = () => openModal(tokenId, meta);
+}
+
+// ═══════════════════════════════════
+//  MODAL
+// ═══════════════════════════════════
+function openModal(tokenId, meta) {
+  const imgWrap = document.getElementById('modalImgWrap');
+  imgWrap.innerHTML = meta.image
+    ? `<img class="modal-img" src="${meta.image}" alt="${escHtml(meta.name)}" onerror="this.parentElement.innerHTML='<div class=modal-img-placeholder>🖼️</div>'" />`
+    : `<div class="modal-img-placeholder">🖼️</div>`;
+
+  document.getElementById('modalName').textContent = meta.name;
+  document.getElementById('modalId').textContent   = `Token #${tokenId} · ${CONTRACT_ADDRESS.slice(0,6)}…${CONTRACT_ADDRESS.slice(-4)}`;
+  document.getElementById('modalDesc').textContent = meta.description || 'No description.';
+
+  const attrsHtml = (meta.attributes || []).map(a => `
+    <div class="modal-attr">
+      <span>${escHtml(a.trait_type || 'Trait')}</span>
+      <strong>${escHtml(String(a.value))}</strong>
+    </div>`).join('');
+  document.getElementById('modalAttrs').innerHTML = attrsHtml;
+
+  const explorerBtn = document.getElementById('modalExplorer');
+  explorerBtn.onclick = () => window.open(`${EXPLORER}/token/${CONTRACT_ADDRESS}/instance/${tokenId}`, '_blank');
+
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal(e) {
+  if (e.target.id === 'modal') document.getElementById('modal').classList.remove('open');
+}
+
+// ═══════════════════════════════════
+//  WALLET
+// ═══════════════════════════════════
+async function connectWallet() {
+  if (!window.ethereum) { showStatus('No wallet detected. Please install MetaMask.', 'error'); return; }
+
+  try {
+    await window.ethereum.request({ method: 'eth_requestAccounts' });
+    provider = new ethers.providers.Web3Provider(window.ethereum);
+
+    const network = await provider.getNetwork();
+    if (network.chainId !== CITREA_CHAIN_ID) {
+      showStatus('Switching to Citrea Mainnet…', 'info');
+      await switchToCitrea();
+      provider = new ethers.providers.Web3Provider(window.ethereum);
+    }
+
+    signer = provider.getSigner();
+    connectedAddress = await signer.getAddress();
+    contract = new ethers.Contract(CONTRACT_ADDRESS, ERC721_ABI, signer);
+
+    const short = connectedAddress.slice(0,6) + '…' + connectedAddress.slice(-4);
+    const btn = document.getElementById('connectBtn');
+    btn.textContent = short;
+    btn.classList.add('connected');
+
+    if (hasMint) {
+      document.getElementById('mintBtn').disabled = false;
+      document.getElementById('mintBtn').textContent = 'Mint NFT';
+    }
+
+    showStatus('✓ Connected: ' + short, 'ok');
+
+    window.ethereum.on('accountsChanged', () => location.reload());
+    window.ethereum.on('chainChanged',    () => location.reload());
+  } catch(e) {
+    showStatus('Connection failed: ' + (e.message || e), 'error');
+  }
+}
+
+async function switchToCitrea() {
+  try {
+    await window.ethereum.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: CITREA_CHAIN_HEX }],
+    });
+  } catch(err) {
+    if (err.code === 4902) {
+      await window.ethereum.request({
+        method: 'wallet_addEthereumChain',
+        params: [{
+          chainId: CITREA_CHAIN_HEX,
+          chainName: 'Citrea Mainnet',
+          nativeCurrency: { name: 'Citrea Bitcoin', symbol: 'cBTC', decimals: 18 },
+          rpcUrls: [RPC_URL],
+          blockExplorerUrls: [EXPLORER],
+        }],
+      });
+    } else { throw err; }
+  }
+}
+
+// ═══════════════════════════════════
+//  MINT
+// ═══════════════════════════════════
+async function mintNFT() {
+  if (!signer) { showStatus('Connect wallet first.', 'error'); return; }
+  const btn = document.getElementById('mintBtn');
+  btn.disabled = true; btn.textContent = 'Minting…';
+  try {
+    let tx;
+    const value = mintPrice || ethers.BigNumber.from(0);
+    try {
+      tx = await contract['mint(uint256)'](1, { value });
+    } catch {
+      try { tx = await contract['mint()'](  { value }); }
+      catch { throw new Error('No compatible mint() function found on this contract.'); }
+    }
+    showStatus('⏳ Transaction submitted: ' + tx.hash, 'info');
+    await tx.wait();
+    showStatus('🎉 Minted successfully! Tx: ' + tx.hash, 'ok');
+    // refresh
+    totalSupply++;
+    document.getElementById('statSupply').textContent = totalSupply.toLocaleString();
+    document.getElementById('countPill').textContent  = totalSupply.toLocaleString() + ' items';
+  } catch(e) {
+    showStatus('Mint failed: ' + (e.reason || e.message), 'error');
+  }
+  btn.disabled = false; btn.textContent = 'Mint NFT';
+}
+
+// ═══════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════
+function showStatus(msg, type) {
+  const el = document.getElementById('statusMsg');
+  el.textContent = msg;
+  el.className = type;
+}
+function escHtml(str) {
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+</script>
+</body>
+</html>

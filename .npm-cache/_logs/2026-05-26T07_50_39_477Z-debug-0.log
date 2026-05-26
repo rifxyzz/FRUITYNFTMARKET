@@ -1,0 +1,25 @@
+0 verbose cli /usr/local/bin/node /usr/local/bin/npm
+1 info using npm@11.6.2
+2 info using node@v24.13.0
+3 silly config load:file:/usr/local/lib/node_modules/npm/npmrc
+4 silly config load:file:/Users/whitebirdxbt/FRUITY/.npmrc
+5 silly config load:file:/Users/whitebirdxbt/.npmrc
+6 silly config load:file:/usr/local/etc/npmrc
+7 verbose title npm install
+8 verbose argv "install" "--cache" "./.npm-cache" "--no-audit" "--no-fund"
+9 verbose logfile logs-max:10 dir:/Users/whitebirdxbt/FRUITY/.npm-cache/_logs/2026-05-26T07_50_39_477Z-
+10 verbose logfile /Users/whitebirdxbt/FRUITY/.npm-cache/_logs/2026-05-26T07_50_39_477Z-debug-0.log
+11 silly logfile done cleaning log files
+12 silly packumentCache heap:4496293888 maxSize:1124073472 maxEntrySize:562036736
+13 silly idealTree buildDeps
+14 silly reify moves {}
+15 http cache @emnapi/wasi-threads@https://registry.npmjs.org/@emnapi/wasi-threads/-/wasi-threads-1.2.1.tgz 0ms (cache hit)
+16 silly tarball no local data for @emnapi/wasi-threads@https://registry.npmjs.org/@emnapi/wasi-threads/-/wasi-threads-1.2.1.tgz. Extracting by manifest.
+17 http fetch GET 200 https://registry.npmjs.org/@emnapi/wasi-threads/-/wasi-threads-1.2.1.tgz 792ms (cache miss)
+18 silly ADD node_modules/@emnapi/wasi-threads
+19 verbose cwd /Users/whitebirdxbt/FRUITY
+20 verbose os Darwin 25.4.0
+21 verbose node v24.13.0
+22 verbose npm  v11.6.2
+23 verbose exit 0
+24 info ok

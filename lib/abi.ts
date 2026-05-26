@@ -1,0 +1,31 @@
+export const ERC721_ABI = [
+  "function name() view returns (string)",
+  "function symbol() view returns (string)",
+  "function totalSupply() view returns (uint256)",
+  "function tokenURI(uint256 tokenId) view returns (string)",
+  "function ownerOf(uint256 tokenId) view returns (address)",
+  "function balanceOf(address owner) view returns (uint256)",
+  "function tokenByIndex(uint256 index) view returns (uint256)",
+  "function tokenOfOwnerByIndex(address owner, uint256 index) view returns (uint256)",
+  "function supportsInterface(bytes4 interfaceId) view returns (bool)",
+  "function getApproved(uint256 tokenId) view returns (address)",
+  "function isApprovedForAll(address owner, address operator) view returns (bool)",
+  "function approve(address to, uint256 tokenId)",
+  "function setApprovalForAll(address operator, bool approved)",
+  "function mint(uint256 quantity) payable",
+  "function mint() payable",
+  "function safeMint(address to) payable",
+  "function mintPrice() view returns (uint256)",
+  "function price() view returns (uint256)",
+  "function cost() view returns (uint256)",
+  "function maxSupply() view returns (uint256)",
+  "function paused() view returns (bool)",
+] as const;
+
+export const MARKETPLACE_ABI = [
+  "function listItem(address nft, uint256 tokenId, uint256 price) external",
+  "function cancelListing(address nft, uint256 tokenId) external",
+  "function buyItem(address nft, uint256 tokenId) external payable",
+  "function getListing(address nft, uint256 tokenId) external view returns (address seller, uint256 price)",
+  "function listings(address nft, uint256 tokenId) external view returns (address seller, uint256 price)",
+] as const;
